@@ -96,6 +96,53 @@ declare module '@sendgrid/mail' {
   export function send(msg: unknown): Promise<unknown>;
 }
 
+declare module '@azure/storage-blob' {
+  export class BlobServiceClient {
+    static fromConnectionString(connStr: string): BlobServiceClient;
+    getContainerClient(name: string): ContainerClient;
+  }
+  export class ContainerClient {
+    getBlockBlobClient(name: string): BlockBlobClient;
+  }
+  export class BlockBlobClient {
+    url: string;
+    uploadData(data: Buffer, opts?: unknown): Promise<void>;
+    downloadToBuffer(): Promise<Buffer>;
+    deleteIfExists(): Promise<unknown>;
+    exists(): Promise<boolean>;
+  }
+  export class StorageSharedKeyCredential {
+    constructor(accountName: string, accountKey: string);
+  }
+  export class BlobSASPermissions {
+    static parse(permissions: string): BlobSASPermissions;
+  }
+  export function generateBlobSASQueryParameters(
+    opts: { containerName: string; blobName: string; permissions: BlobSASPermissions; expiresOn: Date },
+    credential: StorageSharedKeyCredential,
+  ): { toString(): string };
+}
+
+declare module '@azure/service-bus' {
+  export class ServiceBusClient {
+    constructor(connectionString: string);
+    createSender(topic: string): ServiceBusSender;
+    createReceiver(topic: string, subscription: string, opts?: unknown): ServiceBusReceiver;
+    close(): Promise<void>;
+  }
+  export interface ServiceBusSender {
+    sendMessages(msg: { body: unknown; applicationProperties?: unknown }): Promise<void>;
+    close(): Promise<void>;
+  }
+  export interface ServiceBusReceiver {
+    subscribe(handlers: {
+      processMessage: (msg: unknown) => Promise<void>;
+      processError: (args: { error: Error }) => Promise<void>;
+    }, opts?: unknown): void;
+    close(): Promise<void>;
+  }
+}
+
 declare module 'axios' {
   interface AxiosStatic {
     post(url: string, data?: unknown, config?: { timeout?: number }): Promise<unknown>;

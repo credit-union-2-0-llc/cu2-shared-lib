@@ -15,3 +15,9 @@ export {
   type RequestWithUser,
   type Cu2GuardOptions,
 } from './nestjs-guard.js';
+
+export {
+  createNextAuthConfig,
+  type NextAuthAzureOptions,
+  type NextAuthAzureConfig,
+} from './nextauth-azure.js';

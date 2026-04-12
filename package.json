@@ -27,7 +27,12 @@
     "./api/logger": "./dist/api/logger.js",
     "./api/health-check": "./dist/api/health-check.js",
     "./ai": "./dist/ai/index.js",
-    "./ai/claude-client": "./dist/ai/claude-client.js"
+    "./ai/claude-client": "./dist/ai/claude-client.js",
+    "./azure/blob-storage": "./dist/azure/blob-storage.js",
+    "./azure/service-bus": "./dist/azure/service-bus.js",
+    "./auth/nextauth-azure": "./dist/auth/nextauth-azure.js",
+    "./api/rate-limiter": "./dist/api/rate-limiter.js",
+    "./api/cors": "./dist/api/cors.js"
   },
   "files": [
     "dist",
