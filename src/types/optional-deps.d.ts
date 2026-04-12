@@ -143,6 +143,53 @@ declare module '@azure/service-bus' {
   }
 }
 
+declare module 'ioredis' {
+  class Redis {
+    constructor(url: string);
+    get(key: string): Promise<string | null>;
+    setex(key: string, ttl: number, value: string): Promise<void>;
+    del(...keys: string[]): Promise<void>;
+    keys(pattern: string): Promise<string[]>;
+    incr(key: string): Promise<number>;
+    incrby(key: string, amount: number): Promise<number>;
+    expire(key: string, seconds: number): Promise<void>;
+    quit(): Promise<void>;
+    on(event: string, handler: (...args: unknown[]) => void): void;
+  }
+  export default Redis;
+}
+
+declare module 'node-cron' {
+  interface ScheduledTask {
+    stop(): void;
+  }
+  export function schedule(
+    expression: string,
+    fn: () => void,
+    options?: { timezone?: string },
+  ): ScheduledTask;
+}
+
+declare module 'pg' {
+  export class Pool {
+    constructor(config: {
+      connectionString: string;
+      max?: number;
+      idleTimeoutMillis?: number;
+      connectionTimeoutMillis?: number;
+      ssl?: boolean | { rejectUnauthorized: boolean };
+    });
+    query(text: string, params?: unknown[]): Promise<{ rows: unknown[]; rowCount: number | null }>;
+    connect(): Promise<PoolClient>;
+    on(event: string, handler: (err: Error) => void): void;
+    end(): Promise<void>;
+  }
+  export interface PoolClient {
+    query(text: string, params?: unknown[]): Promise<{ rows: unknown[]; rowCount: number | null }>;
+    release(): void;
+  }
+}
+
 declare module 'axios' {
   interface AxiosStatic {
     post(url: string, data?: unknown, config?: { timeout?: number }): Promise<unknown>;

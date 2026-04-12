@@ -21,3 +21,17 @@ export {
   type NextAuthAzureOptions,
   type NextAuthAzureConfig,
 } from './nextauth-azure.js';
+
+export {
+  createRbac,
+  type RoleHierarchy,
+  type ActionRoles,
+  type RbacOptions,
+  type Rbac,
+} from './rbac.js';
+
+export {
+  createTenantMiddleware,
+  type TenantInfo,
+  type TenantMiddlewareOptions,
+} from './tenant.js';

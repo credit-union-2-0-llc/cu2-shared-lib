@@ -17,3 +17,6 @@ export * from './payments/index.js';
 export * from './notifications/index.js';
 export * from './api/index.js';
 export * from './ai/index.js';
+export * from './cache/index.js';
+export * from './scheduling/index.js';
+export * from './db/index.js';

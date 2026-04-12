@@ -32,7 +32,19 @@
     "./azure/service-bus": "./dist/azure/service-bus.js",
     "./auth/nextauth-azure": "./dist/auth/nextauth-azure.js",
     "./api/rate-limiter": "./dist/api/rate-limiter.js",
-    "./api/cors": "./dist/api/cors.js"
+    "./api/cors": "./dist/api/cors.js",
+    "./api/response-envelope": "./dist/api/response-envelope.js",
+    "./api/pagination": "./dist/api/pagination.js",
+    "./api/csv-import": "./dist/api/csv-import.js",
+    "./auth/rbac": "./dist/auth/rbac.js",
+    "./auth/tenant": "./dist/auth/tenant.js",
+    "./cache": "./dist/cache/index.js",
+    "./cache/redis-cache": "./dist/cache/redis-cache.js",
+    "./scheduling": "./dist/scheduling/index.js",
+    "./scheduling/cron-scheduler": "./dist/scheduling/cron-scheduler.js",
+    "./db": "./dist/db/index.js",
+    "./db/pool": "./dist/db/pool.js",
+    "./notifications/email-templates": "./dist/notifications/email-templates.js"
   },
   "files": [
     "dist",
@@ -62,7 +74,10 @@
     "jwks-rsa": ">=3.0.0",
     "stripe": ">=14.0.0",
     "twilio": ">=4.0.0",
-    "winston": ">=3.10.0"
+    "winston": ">=3.10.0",
+    "ioredis": ">=5.0.0",
+    "node-cron": ">=3.0.0",
+    "pg": ">=8.0.0"
   },
   "peerDependenciesMeta": {
     "@anthropic-ai/sdk": {
@@ -99,6 +114,15 @@
       "optional": true
     },
     "twilio": {
+      "optional": true
+    },
+    "ioredis": {
+      "optional": true
+    },
+    "node-cron": {
+      "optional": true
+    },
+    "pg": {
       "optional": true
     }
   },
