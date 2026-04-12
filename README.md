@@ -16,7 +16,7 @@ All heavy dependencies are **optional peer deps** — only install what you use.
 
 ## Modules
 
-### `@cu2/shared-lib/auth` — Authentication
+### `@cu2/shared-lib/auth` — Authentication & Authorization
 
 #### `createJwtMiddleware(opts)` — Express Azure AD JWT
 
@@ -60,6 +60,111 @@ health() { return { ok: true }; }
 **Peer deps:** `@nestjs/common`
 
 *Extracted from: AI_CU_CDP*
+
+---
+
+#### `createNextAuthConfig(opts)` — NextAuth.js Azure AD
+
+Generates a complete NextAuth.js configuration for Microsoft Entra ID (Azure AD) with JWT session strategy and optional database role lookup.
+
+```typescript
+import { createNextAuthConfig } from '@cu2/shared-lib/auth';
+
+const authConfig = createNextAuthConfig({
+  clientId: process.env.AZURE_AD_CLIENT_ID!,
+  clientSecret: process.env.AZURE_AD_CLIENT_SECRET!,
+  tenantId: process.env.AZURE_AD_TENANT_ID!,
+  lookupUser: async (email) => {
+    const user = await db.user.findUnique({ where: { email } });
+    return user ? { role: user.role, tenantId: user.tenantId } : null;
+  },
+  protectedPaths: ['/admin', '/dashboard'],
+});
+
+export const { auth, handlers } = NextAuth(authConfig);
+```
+
+**What it does:** Creates a NextAuth config with Microsoft Entra ID provider, JWT session strategy, custom callbacks to enrich the session with role/tenantId from your database, and a middleware `authorized` callback that protects specified paths.
+
+**Peer deps:** `next-auth`, `@auth/core`
+
+*Extracted from: cugiftbot, trendforge-dashboard*
+
+---
+
+#### `createRbac(opts)` — Role-Based Access Control
+
+Configurable role hierarchy with action-to-role mapping, permission checking, tenant-scoped access control, and Express middleware.
+
+```typescript
+import { createRbac } from '@cu2/shared-lib/auth';
+
+const rbac = createRbac({
+  hierarchy: {
+    SUPER_ADMIN: 4,
+    ADMIN: 3,
+    MANAGER: 2,
+    VIEWER: 1,
+  },
+  actions: {
+    view_dashboard: 'VIEWER',
+    export_data:    'MANAGER',
+    manage_users:   'SUPER_ADMIN',
+  },
+});
+
+rbac.hasRole('ADMIN', 'VIEWER');          // true (ADMIN >= VIEWER)
+rbac.canPerform('VIEWER', 'manage_users'); // false
+rbac.canAccessTenant('ADMIN', 'tenant-1', 'tenant-2'); // false
+rbac.canAccessTenant('SUPER_ADMIN', null, 'any');       // true (super role)
+
+// Express middleware
+app.delete('/users/:id', rbac.requireAction('manage_users'), handler);
+app.get('/admin', rbac.requireRole('ADMIN'), handler);
+```
+
+**What it does:** Define your role hierarchy as role-name-to-numeric-level pairs. Higher levels inherit all lower permissions. Map action names to minimum required roles. `hasRole` compares levels; `canPerform` checks actions. `canAccessTenant` enforces tenant isolation — the highest role (or explicit `superRole`) bypasses tenant scoping. Express middleware versions of both checks are included.
+
+**Peer deps:** `express` (for middleware only)
+
+*Extracted from: cugiftbot, scienceworks-platform*
+
+---
+
+#### `createTenantMiddleware(opts)` — Multi-Tenant Resolution
+
+Express middleware that resolves the current tenant from request headers, subdomain, or custom hostname, with 5-minute in-memory caching.
+
+```typescript
+import { createTenantMiddleware } from '@cu2/shared-lib/auth';
+
+// Strategy 1: Header-based (simplest)
+app.use(createTenantMiddleware({ headerName: 'x-tenant-id' }));
+
+// Strategy 2: Hostname resolution with caching
+app.use(createTenantMiddleware({
+  resolveTenant: async (hostname) => {
+    const domain = await db.tenantDomain.findFirst({
+      where: { domain: hostname },
+      include: { tenant: true },
+    });
+    return domain ? { id: domain.tenantId, slug: domain.tenant.slug } : null;
+  },
+  cacheTtlMs: 300_000, // 5 min (default)
+}));
+
+// In route handlers:
+app.get('/api/data', (req, res) => {
+  const tenantId = req.tenantId;  // string
+  const tenant = req.tenant;       // full TenantInfo object
+});
+```
+
+**What it does:** First checks for a tenant ID in the request header (configurable name, default `x-tenant-id`). If not found and a `resolveTenant` function is provided, resolves from hostname. Caches hostname lookups in memory for 5 minutes. Attaches `tenantId` and `tenant` to the request object. Returns 404 if tenant is required but not resolvable.
+
+**Peer deps:** `express`
+
+*Extracted from: cugiftbot*
 
 ---
 
@@ -333,6 +438,43 @@ await teams.sendCard({
 
 ---
 
+#### `emailWrapper(opts)`, `detailTable()`, `detailRow()`, `heading()`, `button()` — Email Templates
+
+HTML email building blocks with consistent inline styling. Works with any email provider.
+
+```typescript
+import {
+  emailWrapper, detailTable, detailRow, heading, paragraph, button, divider,
+} from '@cu2/shared-lib/notifications';
+
+const html = emailWrapper({
+  title: 'Booking Confirmed',
+  brandColor: '#2563eb',
+  body: `
+    ${heading('Your booking is confirmed!')}
+    ${paragraph('Here are the details:')}
+    ${detailTable([
+      detailRow('Date', 'March 15, 2026'),
+      detailRow('Time', '10:00 AM - 11:00 AM'),
+      detailRow('Location', 'Main Hall'),
+      detailRow('Confirmation', 'ABC-1234'),
+    ])}
+    ${button('View Booking', 'https://app.example.com/bookings/123')}
+    ${divider()}
+    ${paragraph('Questions? Reply to this email.')}
+  `,
+  footer: '&copy; 2026 ScienceWorks Museum',
+});
+```
+
+**What it does:** Generates complete, inline-styled HTML emails that render consistently across email clients (Gmail, Outlook, Apple Mail). `emailWrapper` provides the full document structure with branded header, white content area, and optional footer. Building blocks (`detailRow`, `detailTable`, `heading`, `paragraph`, `button`, `divider`) compose the body. All styles are inline — no CSS classes that email clients strip.
+
+**Peer deps:** None
+
+*Extracted from: scienceworks-platform*
+
+---
+
 ### `@cu2/shared-lib/api` — Express Utilities
 
 #### `AppError`, `errorHandler(opts)`, `ok()`, `fail()` — Error Handling
@@ -347,14 +489,14 @@ throw new AppError(400, 'INVALID_INPUT', 'Email is required', { field: 'email' }
 
 // Response helpers
 res.json(ok({ user: { id: 1, name: 'Kirk' } }));
-// → { success: true, data: { user: ... }, error: null, meta: { timestamp, request_id } }
+// { success: true, data: { user: ... }, error: null, meta: { timestamp, request_id } }
 
 res.status(400).json(fail('INVALID_INPUT', 'Email is required'));
-// → { success: false, data: null, error: { code, message }, meta: { timestamp, request_id } }
+// { success: false, data: null, error: { code, message }, meta: { timestamp, request_id } }
 
 // Mount at end of middleware chain
-app.use(notFound);    // 404 for unmatched routes
-app.use(errorHandler({ logger }));  // catches AppError + generic errors
+app.use(notFound);
+app.use(errorHandler({ logger }));
 ```
 
 **What it does:** Standardizes API responses across all services. Every response includes `success`, `data`, `error`, and `meta` (with `timestamp` and `request_id` UUID). The error handler catches `AppError` (your code), `UnauthorizedError` (JWT libs), and generic errors (500). Never leaks stack traces in production.
@@ -422,9 +564,9 @@ const aiLimiter = createRateLimiter({ windowMs: 60_000, max: 10 });
 app.post('/api/ai/query', aiLimiter, queryHandler);
 ```
 
-**What it does:** Wraps `express-rate-limit` with a structured JSON error response matching the `fail()` format. Configurable window and max. Returns 429 with a human-readable message when exceeded.
+**What it does:** In-memory rate limiting with configurable window and max requests. Returns 429 with a structured JSON error when exceeded. IP-based by default.
 
-**Peer deps:** `express-rate-limit`
+**Peer deps:** None (in-memory implementation)
 
 *Extracted from: pm-knowledge-ai*
 
@@ -446,9 +588,117 @@ app.use(createCorsMiddleware({
 
 **What it does:** In production (`NODE_ENV=production`), allows only the specified origins. In development, allows localhost origins for Vite/Next.js/CRA dev servers. Always allows `Content-Type`, `Authorization`, and configurable extra headers. Enables credentials for cookie-based auth.
 
-**Peer deps:** `cors`
+**Peer deps:** None
 
 *Extracted from: pm-knowledge-ai*
+
+---
+
+#### `envelope(data)`, `errorEnvelope(code, msg)` — Response Envelope
+
+Standardized API response wrappers with success/error discriminator and metadata.
+
+```typescript
+import { envelope, errorEnvelope, envelopeMiddleware } from '@cu2/shared-lib/api';
+
+// Direct use
+res.json(envelope({ users: [...] }));
+// { success: true, data: { users: [...] }, error: null, meta: { timestamp, request_id } }
+
+res.status(400).json(errorEnvelope('VALIDATION_ERROR', 'Email is required'));
+// { success: false, data: null, error: { code, message, details: null }, meta: { ... } }
+
+res.status(422).json(errorEnvelope('VALIDATION_ERROR', 'Invalid fields', [
+  { field: 'email', message: 'Required' },
+]));
+
+// Or use middleware for res.ok() / res.fail() helpers
+app.use(envelopeMiddleware());
+// Then in handlers:
+res.ok({ users: [...] });
+res.fail('VALIDATION_ERROR', 'Email is required', 400);
+```
+
+**What it does:** Wraps every response in a consistent envelope shape. `envelope()` for success, `errorEnvelope()` for failures. Both include a `meta` block with ISO timestamp and UUID request ID. The optional `envelopeMiddleware` adds `res.ok()` and `res.fail()` convenience methods to every response.
+
+**Peer deps:** None (uses Node.js `crypto` for UUID)
+
+*Extracted from: trendforge-execution*
+
+---
+
+#### `parsePagination(input)`, `paginatedResponse(items, total, params)` — Pagination
+
+Parse pagination from query params and build paginated responses with metadata.
+
+```typescript
+import { parsePagination, paginatedResponse } from '@cu2/shared-lib/api';
+
+// Parse from Express query params
+const pg = parsePagination(req.query);
+// { page: 1, limit: 25, offset: 0 }
+
+const pg2 = parsePagination({ page: '3', limit: '10' });
+// { page: 3, limit: 10, offset: 20 }
+
+// With custom defaults
+const pg3 = parsePagination(req.query, { defaultLimit: 50, maxLimit: 200 });
+
+// Build response
+const items = await db.users.findMany({ skip: pg.offset, take: pg.limit });
+const total = await db.users.count();
+const result = paginatedResponse(items, total, pg);
+// {
+//   items: [...],
+//   pagination: { page: 3, limit: 10, total: 87, totalPages: 9, hasNext: true, hasPrev: true }
+// }
+```
+
+**What it does:** Supports both page-based (`page` + `limit`) and offset-based (`offset` + `limit`) pagination. Automatically converts between the two. Clamps limit to `maxLimit` (default 100) to prevent abuse. `paginatedResponse` builds the response with computed `totalPages`, `hasNext`, and `hasPrev` metadata.
+
+**Peer deps:** None
+
+*Extracted from: broflo, scienceworks-platform*
+
+---
+
+#### `createCsvImporter(opts)` — CSV Import Validator
+
+Row-level validation with partial success support. Never bulk-fails — imports what it can and reports errors per row.
+
+```typescript
+import { createCsvImporter } from '@cu2/shared-lib/api';
+
+interface BudgetRow {
+  program_code: string;
+  year: number;
+  month: number;
+  budget_amount: number;
+}
+
+const importer = createCsvImporter<BudgetRow>({
+  validate: (row, rowNumber) => {
+    const errors: string[] = [];
+    if (!row.program_code) errors.push('program_code is required');
+    if (row.year < 2020 || row.year > 2099) errors.push('year must be 2020-2099');
+    if (row.month < 1 || row.month > 12) errors.push('month must be 1-12');
+    if (row.budget_amount < 0) errors.push('budget_amount must be positive');
+    return errors;
+  },
+  process: async (validRows) => {
+    await db.budgetTarget.createMany({ data: validRows });
+  },
+});
+
+const result = await importer.import(parsedCsvRows);
+// { imported: 47, total: 50, errors: [{ row: 3, message: 'year must be 2020-2099' }, ...], validRows: [...] }
+```
+
+**What it does:** Iterates rows, validates each one individually, collects valid rows and errors separately. Calls `process()` once with all valid rows (skipped if none are valid). Returns imported count, total count, error array with 1-based row numbers, and the valid rows array.
+
+**Peer deps:** None
+
+*Extracted from: scienceworks-platform*
 
 ---
 
@@ -487,11 +737,141 @@ const reply = await claude.chat([
 ], systemPrompt);
 ```
 
-**What it does:** Lazy-initializes the Anthropic client on first call. `complete` returns the full text response. `stream` yields text chunks as an async generator for real-time display. `completeJson` strips markdown code fences (`\`\`\`json ... \`\`\``) before parsing — handles the common Claude habit of wrapping JSON in fences. `chat` accepts full message history for multi-turn conversations.
+**What it does:** Lazy-initializes the Anthropic client on first call. `complete` returns the full text response. `stream` yields text chunks as an async generator for real-time display. `completeJson` strips markdown code fences before parsing — handles the common Claude habit of wrapping JSON in fences. `chat` accepts full message history for multi-turn conversations.
 
 **Peer deps:** `@anthropic-ai/sdk`
 
 *Extracted from: pm-knowledge-ai*
+
+---
+
+### `@cu2/shared-lib/cache` — Caching
+
+#### `createCache(opts)` — Redis + In-Memory Fallback
+
+Redis cache client that automatically falls back to an in-memory Map with TTL when Redis is unavailable. Includes rate limiting and spend cap tracking.
+
+```typescript
+import { createCache } from '@cu2/shared-lib/cache';
+
+const cache = createCache({ url: process.env.REDIS_URL });
+
+// Basic key-value
+await cache.set('user:123', JSON.stringify(userData), 3600); // 1 hour TTL
+const val = await cache.get('user:123');
+await cache.del('user:123');
+
+// Pattern invalidation
+await cache.invalidateByPattern('user:*');
+
+// Rate limiting
+const { allowed, remaining } = await cache.checkRateLimit('ratelimit:user-123', {
+  limit: 20,
+  windowSeconds: 3600,
+});
+if (!allowed) return res.status(429).json({ error: 'Rate limit exceeded' });
+
+// Spend cap tracking (e.g., AI API costs)
+await cache.trackSpend('spend:daily:2026-04-11', 150, 5000); // 150 cents, $50 cap
+const { withinCap, currentCents } = await cache.checkSpendCap('spend:daily:2026-04-11', 5000);
+
+// Cleanup
+await cache.close();
+```
+
+**What it does:** Tries to connect to Redis via `ioredis` if a URL is provided. If Redis is unavailable or `ioredis` isn't installed, seamlessly falls back to an in-memory Map with automatic TTL expiration. `checkRateLimit` implements sliding-window rate limiting. `trackSpend` accumulates costs and checks against a configurable daily cap. All operations work identically in both Redis and in-memory mode.
+
+**Peer deps:** `ioredis` (optional — falls back to in-memory)
+
+*Extracted from: broflo*
+
+---
+
+### `@cu2/shared-lib/scheduling` — Job Scheduling
+
+#### `createScheduler(opts)` — Cron Job Registry
+
+Named cron job scheduler with error isolation, manual triggering, and UTC enforcement.
+
+```typescript
+import { createScheduler } from '@cu2/shared-lib/scheduling';
+
+const scheduler = createScheduler({
+  logger: myLogger,     // optional, defaults to console
+  timezone: 'UTC',      // optional, defaults to 'UTC'
+});
+
+scheduler.register({
+  name: 'daily-digest',
+  schedule: '0 0 * * *',   // midnight UTC
+  fn: async () => {
+    const data = await aggregateDailyStats();
+    await sendDigestEmail(data);
+  },
+});
+
+scheduler.register({
+  name: 'stale-cleanup',
+  schedule: '0 6 * * *',   // 6 AM UTC
+  fn: async () => { await cleanupStaleRecords(); },
+});
+
+scheduler.start();                          // starts all registered jobs
+await scheduler.trigger('daily-digest');     // manual trigger (testing/admin)
+scheduler.getJobs();                        // ['daily-digest', 'stale-cleanup']
+scheduler.stop();                           // stops all
+```
+
+**What it does:** Register named jobs with cron expressions and async handlers. Each job runs independently — a failure in one never crashes the process or blocks others. Logs start/complete/failure with duration. `trigger()` runs a job on demand (useful for admin endpoints or testing). Jobs can be registered before or after `start()`.
+
+**Peer deps:** `node-cron` (required for `start()`)
+
+*Extracted from: trendforge-execution, trendforge-orchestration*
+
+---
+
+### `@cu2/shared-lib/db` — Database
+
+#### `createDbPool(opts)` — PostgreSQL Pool + Transactions
+
+Connection pool with slow query detection, automatic logging, and a higher-order transaction wrapper.
+
+```typescript
+import { createDbPool } from '@cu2/shared-lib/db';
+
+const db = createDbPool({
+  connectionString: process.env.DATABASE_URL!,
+  max: 10,                    // max connections (default)
+  ssl: process.env.NODE_ENV === 'production',
+  slowQueryThresholdMs: 2000, // warn above 2s (default)
+  logger: myLogger,           // optional
+});
+
+// Simple query
+const { rows } = await db.query<User>('SELECT * FROM users WHERE id = $1', [userId]);
+
+// Transaction — auto BEGIN/COMMIT/ROLLBACK
+const order = await db.withTransaction(async (client) => {
+  const { rows: [order] } = await client.query(
+    'INSERT INTO orders (user_id, total) VALUES ($1, $2) RETURNING *',
+    [userId, total],
+  );
+  await client.query(
+    'INSERT INTO order_items (order_id, product_id, qty) VALUES ($1, $2, $3)',
+    [order.id, productId, qty],
+  );
+  return order;
+});
+
+// Shutdown
+await db.close();
+```
+
+**What it does:** Wraps `pg.Pool` with a factory pattern. Monitors query duration and logs warnings for queries exceeding the threshold (default 2 seconds). `withTransaction` acquires a client, runs BEGIN, executes your function, COMMITs on success, ROLLBACKs on error, and releases the client in all cases. Configurable max connections, idle timeout, connection timeout, and SSL.
+
+**Peer deps:** `pg`
+
+*Extracted from: trendforge-execution*
 
 ---
 
@@ -502,3 +882,4 @@ const reply = await claude.chat([
 - **Subpath exports** — `import { x } from '@cu2/shared-lib/auth'` for tree-shaking
 - **ESM + TypeScript declarations** — full IntelliSense support
 - **No runtime deps** — everything is a peer dependency
+- **9 categories, 29 modules** — auth, azure, payments, notifications, api, ai, cache, scheduling, db
