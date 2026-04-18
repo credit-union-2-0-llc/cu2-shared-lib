@@ -875,6 +875,67 @@ await db.close();
 
 ---
 
+### `@cu2/shared-lib/testing` — Cross-Browser E2E Kit
+
+#### `createPlaywrightConfig(opts)` — Playwright config factory
+
+Produces a fully-formed `PlaywrightTestConfig` with the standard CU2/XDI browser/device matrix. Every project can test Chromium, Firefox, WebKit, Edge, iOS mobile, and Android mobile from a single import — no more hand-rolled configs drifting across repos.
+
+```typescript
+// playwright.config.ts
+import { createPlaywrightConfig, FULL_MATRIX } from '@cu2/shared-lib/testing';
+
+export default createPlaywrightConfig({
+  baseUrl: process.env.APP_BASE_URL ?? 'http://localhost:3000',
+  apiUrl: process.env.APP_API_URL ?? 'http://localhost:3001',
+  matrix: FULL_MATRIX,
+  setupFile: /auth\.setup\.ts/,
+});
+```
+
+**What it does:** wires `baseURL`, trace/screenshot/video defaults, CI-aware retries, HTML + list reporter, and the project matrix. When `setupFile` is passed, a `setup` project is added and every matrix project depends on it, so auth state is established once and reused across browsers. `apiUrl` is surfaced via config metadata so specs can reach test-only endpoints.
+
+**Matrix presets:**
+- `MINIMAL_MATRIX` — Chromium + iPhone 15 (fast PR feedback)
+- `STANDARD_MATRIX` — Chromium, Firefox, WebKit, iPhone 15 (engine coverage, default)
+- `FULL_MATRIX` — + Edge (msedge channel) + Pixel 7 (release-candidate coverage)
+
+Or compose your own from the named projects: `CHROMIUM`, `FIREFOX`, `WEBKIT`, `EDGE`, `MOBILE_IOS`, `MOBILE_ANDROID`, `TABLET_IOS`.
+
+> **Note on fidelity:** Playwright's `webkit` is the WebKit engine, not real iOS Safari. Playwright's `mobile-android` is Chromium with a Pixel 7 viewport, not real Android Chrome. For device-cloud validation before production deploys, use **Microsoft Playwright Testing** (Azure, pay-per-minute) or **BrowserStack**. The config factory works unchanged against both.
+
+**Peer deps:** `@playwright/test`
+
+#### `fetchLatestOtp(opts)` — OTP retrieval helper for E2E login
+
+For apps that use one-time-code (OTP / magic-code) login, this helper reads the most recent code for a given email from a test-only endpoint.
+
+```typescript
+import { fetchLatestOtp } from '@cu2/shared-lib/testing';
+
+const code = await fetchLatestOtp({
+  apiUrl: 'http://localhost:3001',
+  email: 'qa+chromium@broflo.test',
+});
+await page.fill('input[name="code"]', code);
+```
+
+**What it does:** polls `GET {apiUrl}/test/last-otp/:email` until a code appears or the timeout elapses. Configurable endpoint path, response field name, poll interval, and timeout. Throws `OtpNotFoundError` on timeout.
+
+**Security:** the test endpoint MUST be gated by `NODE_ENV !== 'production'` (throw `ForbiddenException` otherwise). Without that guard, anyone can harvest OTP codes from your prod API.
+
+#### Templates — copy-paste starters
+
+Shipped under `node_modules/@cu2/shared-lib/templates/testing/`:
+- `auth.setup.ts` — reusable OTP auth setup project
+- `login-otp.spec.ts` — cross-browser OTP login smoke test
+
+Copy them into your project's `tests/e2e/` directory and customize the selectors.
+
+*Extracted from: broflo (S-12) — generalized for all CU2 web projects*
+
+---
+
 ## Architecture
 
 - **Factory pattern everywhere** — pass config, no hardcoded env vars
@@ -882,4 +943,4 @@ await db.close();
 - **Subpath exports** — `import { x } from '@cu2/shared-lib/auth'` for tree-shaking
 - **ESM + TypeScript declarations** — full IntelliSense support
 - **No runtime deps** — everything is a peer dependency
-- **9 categories, 29 modules** — auth, azure, payments, notifications, api, ai, cache, scheduling, db
+- **10 categories, 30+ modules** — auth, azure, payments, notifications, api, ai, cache, scheduling, db, testing
