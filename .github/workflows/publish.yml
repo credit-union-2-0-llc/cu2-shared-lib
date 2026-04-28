@@ -1,0 +1,47 @@
+name: publish
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://npm.pkg.github.com
+          scope: '@credit-union-2-0-llc'
+
+      - name: Install
+        run: npm install --no-audit --no-fund
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test
+
+      - name: Publish (skip if version unchanged)
+        run: |
+          set -e
+          PUB_NAME=$(node -p "require('./package.json').name")
+          PUB_VER=$(node -p "require('./package.json').version")
+          echo "Publishing ${PUB_NAME}@${PUB_VER}"
+          if npm view "${PUB_NAME}@${PUB_VER}" version 2>/dev/null; then
+            echo "Version ${PUB_VER} already published — no-op."
+            exit 0
+          fi
+          npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
