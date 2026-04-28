@@ -1,6 +1,13 @@
 {
-  "name": "@cu2/shared-lib",
-  "version": "1.0.0",
+  "name": "@credit-union-2-0-llc/shared-lib",
+  "version": "1.0.1",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/credit-union-2-0-llc/cu2-shared-lib.git"
+  },
   "description": "CU2/XDI shared library — auth, Azure, payments, notifications, API utilities, AI, testing",
   "license": "MIT",
   "type": "module",
