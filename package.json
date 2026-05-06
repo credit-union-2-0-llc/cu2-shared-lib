@@ -1,6 +1,6 @@
 {
   "name": "@credit-union-2-0-llc/shared-lib",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   },
@@ -59,6 +59,9 @@
     "./tagging": "./dist/tagging/index.js",
     "./send": "./dist/send/index.js",
     "./send/resend": "./dist/send/resend.js",
+    "./send/twilio": "./dist/send/twilio.js",
+    "./send/persona": "./dist/send/persona.js",
+    "./send/plaid": "./dist/send/plaid.js",
     "./eslint-rules/no-direct-vendor-sdk": "./dist/eslint-rules/no-direct-vendor-sdk.js"
   },
   "files": [
@@ -97,7 +100,8 @@
     "twilio": ">=4.0.0",
     "winston": ">=3.10.0",
     "resend": ">=4.0.0",
-    "eslint": ">=8.0.0"
+    "eslint": ">=8.0.0",
+    "plaid": ">=28.0.0"
   },
   "peerDependenciesMeta": {
     "@anthropic-ai/sdk": {
@@ -153,6 +157,9 @@
     },
     "eslint": {
       "optional": true
+    },
+    "plaid": {
+      "optional": true
     }
   },
   "devDependencies": {
@@ -165,7 +172,9 @@
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "jwks-rsa": "^4.0.1",
+    "plaid": "^42.0.0",
     "resend": "^6.12.2",
+    "twilio": "^6.0.0",
     "typescript": "^5.9.3",
     "vitest": "^3.0.0",
     "winston": "^3.19.0"

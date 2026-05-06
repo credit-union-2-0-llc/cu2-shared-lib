@@ -2,13 +2,20 @@
  * @cu2/shared-lib/eslint-rules/no-direct-vendor-sdk
  *
  * v1.1.0 — cu2-billing W2-01.
+ * v1.2.0 — cu2-billing W3-01: Twilio/Persona/Plaid wrappers shipped; `persona`
+ *          (real npm package — the browser Inquiry Flow SDK) added to denylist
+ *          alongside the historical `persona-sdk` placeholder so server code
+ *          cannot accidentally import the browser widget OR a fictional SDK.
  *
  * Flags direct imports of vendor SDKs that MUST go through a shared-lib
- * wrapper. v1.1.0 enforces:
+ * wrapper. v1.2.0 enforces:
  *   • `resend`         → must use @cu2/shared-lib/send/resend
- *   • `twilio`         → reserved for v1.2.0 wrapper (already on denylist)
- *   • `persona-sdk`    → reserved for v1.2.0
- *   • `plaid`          → reserved for v1.2.0
+ *   • `twilio`         → must use @cu2/shared-lib/send/twilio
+ *   • `persona-sdk`    → must use @cu2/shared-lib/send/persona
+ *   • `persona`        → must use @cu2/shared-lib/send/persona (real npm pkg
+ *                        is the BROWSER Inquiry Flow widget; server-side
+ *                        inquiry creation goes through the REST wrapper)
+ *   • `plaid`          → must use @cu2/shared-lib/send/plaid
  *
  * Catches both static `ImportDeclaration` and dynamic `ImportExpression`
  * (`await import('resend')`) — the latter is the obvious denylist bypass.
@@ -26,6 +33,7 @@ const VENDOR_DENYLIST: Record<string, { wrapperPathFragment: string }> = {
   resend: { wrapperPathFragment: '/src/send/resend.' },
   twilio: { wrapperPathFragment: '/src/send/twilio.' },
   'persona-sdk': { wrapperPathFragment: '/src/send/persona.' },
+  persona: { wrapperPathFragment: '/src/send/persona.' },
   plaid: { wrapperPathFragment: '/src/send/plaid.' },
 };
 
@@ -63,7 +71,8 @@ const rule: Rule.RuleModule = {
       if (!entry) return;
       // Allow the wrapper file itself to import its own vendor SDK.
       if (filename.includes(entry.wrapperPathFragment)) return;
-      const wrapperName = source === 'persona-sdk' ? 'persona' : source;
+      const wrapperName =
+        source === 'persona-sdk' || source === 'persona' ? 'persona' : source;
       context.report({
         node,
         messageId: 'directVendorSdk',

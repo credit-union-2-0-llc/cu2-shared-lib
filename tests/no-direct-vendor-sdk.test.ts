@@ -36,6 +36,25 @@ describe('no-direct-vendor-sdk', () => {
           code: `import { foo } from 'lodash';`,
           filename: '/repo/src/anywhere.ts',
         },
+        // v1.2.0 wrappers may import their own SDK (path-allowlisted).
+        // RuleTester uses the default espree parser, so we test with the JS
+        // syntax form — the TS-only `import type` form is handled by the
+        // same AST node (ImportDeclaration) and the rule never inspects
+        // import-kind, so the JS test exercises identical behavior.
+        {
+          code: `import { Twilio } from 'twilio';`,
+          filename: '/repo/src/send/twilio.ts',
+        },
+        {
+          code: `import { PlaidApi } from 'plaid';`,
+          filename: '/repo/src/send/plaid.ts',
+        },
+        // persona wrapper uses fetch (no SDK), but if it ever did, it would
+        // be exempt by path:
+        {
+          code: `import 'persona';`,
+          filename: '/repo/src/send/persona.ts',
+        },
       ],
       invalid: [
         // Test 7: static import outside the wrapper
@@ -50,10 +69,43 @@ describe('no-direct-vendor-sdk', () => {
           filename: '/repo/apps/api/src/dyn.ts',
           errors: [{ messageId: 'directVendorSdk' }],
         },
-        // future v1.2.0 vendors are also flagged today (rule lists them already)
+        // v1.2.0 vendors — static + dynamic, all flagged
         {
           code: `import twilio from 'twilio';`,
           filename: '/repo/apps/api/src/sms.ts',
+          errors: [{ messageId: 'directVendorSdk' }],
+        },
+        {
+          code: `import { PlaidApi } from 'plaid';`,
+          filename: '/repo/apps/worker/src/plaid-bypass.ts',
+          errors: [{ messageId: 'directVendorSdk' }],
+        },
+        {
+          code: `import 'persona-sdk';`,
+          filename: '/repo/apps/api/src/kyc.ts',
+          errors: [{ messageId: 'directVendorSdk' }],
+        },
+        // v1.2.0 — `persona` (real npm pkg) added to denylist alongside the
+        // historical `persona-sdk` placeholder.
+        {
+          code: `import 'persona';`,
+          filename: '/repo/apps/api/src/kyc-real.ts',
+          errors: [{ messageId: 'directVendorSdk' }],
+        },
+        // dynamic-import bypass attempts for the new wrappers
+        {
+          code: `async function f() { const t = await import('twilio'); return t; }`,
+          filename: '/repo/apps/api/src/sms-dyn.ts',
+          errors: [{ messageId: 'directVendorSdk' }],
+        },
+        {
+          code: `async function f() { const p = await import('plaid'); return p; }`,
+          filename: '/repo/apps/api/src/plaid-dyn.ts',
+          errors: [{ messageId: 'directVendorSdk' }],
+        },
+        {
+          code: `async function f() { const p = await import('persona'); return p; }`,
+          filename: '/repo/apps/api/src/persona-dyn.ts',
           errors: [{ messageId: 'directVendorSdk' }],
         },
       ],

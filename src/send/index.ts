@@ -1,6 +1,10 @@
 /**
- * @cu2/shared-lib/send — vendor-send wrappers (v1.1.0 entry: resend only).
+ * @cu2/shared-lib/send — vendor-send wrappers.
  *
- * v1.2.0 will add ./send/twilio, ./send/persona, ./send/plaid.
+ * v1.1.0: ./resend
+ * v1.2.0: + ./twilio + ./persona + ./plaid
  */
 export * from './resend.js';
+export * from './twilio.js';
+export * from './persona.js';
+export * from './plaid.js';

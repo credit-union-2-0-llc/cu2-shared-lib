@@ -2,6 +2,18 @@
 
 Shared TypeScript library for CU2/XDI projects. Extracted from 28 production repos — the best implementation of each pattern we've built, made configurable and reusable.
 
+## v1.2.0 — Tier-2 send helpers (Twilio / Persona / Plaid) (cu2-billing W3-01)
+
+Three new subpaths, each enforcing `cu_tenant_id` at the TS signature level:
+
+- **`@credit-union-2-0-llc/shared-lib/send/twilio`** — `sendTwilioSms(input, { twilio })`. Forwards to `twilio.messages.create(...)` and echoes `cu_tenant_id` in the result for collector audit.
+- **`@credit-union-2-0-llc/shared-lib/send/persona`** — `createPersonaInquiry(input, { apiKey })`. Stamps `reference-id = cu-<cu_tenant_id>-<user_ref>` and resolves `inquiry-template-id` from `template_map[cu_tenant_id][0]`. Calls Persona's REST API directly via `fetch` (no first-party server-side SDK exists; the `persona` npm package is the browser Inquiry Flow widget).
+- **`@credit-union-2-0-llc/shared-lib/send/plaid`** — `createPlaidLinkToken(input, { plaid })`. Stamps `client_user_id = cu-<cu_tenant_id>-<end_user_ref>` so every downstream Plaid event is attributable to a tenant without out-of-band lookup.
+
+ESLint rule `no-direct-vendor-sdk` denylist extended to include `persona` (the real npm package — the browser Inquiry Flow widget) alongside the historical `persona-sdk` placeholder, so server code cannot accidentally import the browser widget.
+
+`peerDependencies`: `plaid >= 28.0.0` added (optional). `twilio` was already declared in v1.1.0.
+
 ## v1.1.0 — tagging + send/resend + no-direct-vendor-sdk (cu2-billing W2-01 / TAGS-03)
 
 Three new subpaths:
