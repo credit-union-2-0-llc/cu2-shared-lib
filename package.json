@@ -1,6 +1,6 @@
 {
   "name": "@credit-union-2-0-llc/shared-lib",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   },
@@ -55,7 +55,11 @@
     "./testing": "./dist/testing/index.js",
     "./testing/playwright-config": "./dist/testing/playwright-config.js",
     "./testing/device-matrix": "./dist/testing/device-matrix.js",
-    "./testing/otp-helper": "./dist/testing/otp-helper.js"
+    "./testing/otp-helper": "./dist/testing/otp-helper.js",
+    "./tagging": "./dist/tagging/index.js",
+    "./send": "./dist/send/index.js",
+    "./send/resend": "./dist/send/resend.js",
+    "./eslint-rules/no-direct-vendor-sdk": "./dist/eslint-rules/no-direct-vendor-sdk.js"
   },
   "files": [
     "dist",
@@ -91,7 +95,9 @@
     "pg": ">=8.0.0",
     "stripe": ">=14.0.0",
     "twilio": ">=4.0.0",
-    "winston": ">=3.10.0"
+    "winston": ">=3.10.0",
+    "resend": ">=4.0.0",
+    "eslint": ">=8.0.0"
   },
   "peerDependenciesMeta": {
     "@anthropic-ai/sdk": {
@@ -141,16 +147,25 @@
     },
     "@playwright/test": {
       "optional": true
+    },
+    "resend": {
+      "optional": true
+    },
+    "eslint": {
+      "optional": true
     }
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
+    "@types/eslint": "^9.6.1",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.19.17",
+    "eslint": "^10.3.0",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "jwks-rsa": "^4.0.1",
+    "resend": "^6.12.2",
     "typescript": "^5.9.3",
     "vitest": "^3.0.0",
     "winston": "^3.19.0"
