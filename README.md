@@ -2,6 +2,16 @@
 
 Shared TypeScript library for CU2/XDI projects. Extracted from 28 production repos — the best implementation of each pattern we've built, made configurable and reusable.
 
+## v1.1.0 — tagging + send/resend + no-direct-vendor-sdk (cu2-billing W2-01 / TAGS-03)
+
+Three new subpaths:
+
+- **`@credit-union-2-0-llc/shared-lib/tagging`** — typed Azure resource tags (`buildAzureResourceTags`, `assertRequiredTags`, `RequiredTags` interface). `cu-tenant-id` accepts UUID or literal `'shared'` for cross-tenant infra.
+- **`@credit-union-2-0-llc/shared-lib/send/resend`** — `sendResendEmail(input, { resend })` wrapper. **`cu_tenant_id` is REQUIRED at the TS signature level** and is stamped automatically as a Resend tag (`{name: 'cu_tenant_id', value: <id>}`).
+- **`@credit-union-2-0-llc/shared-lib/eslint-rules/no-direct-vendor-sdk`** — ESLint rule that flags direct `import 'resend'` (static + dynamic) outside the wrapper. Denylist already includes `twilio`, `persona-sdk`, `plaid` (their wrappers ship in v1.2.0).
+
+Twilio/Persona/Plaid wrappers are intentionally **deferred to v1.2.0** (Wave 3) — bundling them now would publish dead code.
+
 ## Install
 
 ```bash
