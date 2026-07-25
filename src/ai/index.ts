@@ -1,1 +1,8 @@
-export { createClaudeClient, type ClaudeClientOptions, type ClaudeClient } from './claude-client.js';
+export {
+  createClaudeClient,
+  createHaikuClient,
+  type ClaudeClientOptions,
+  type ClaudeCallOptions,
+  type ClaudeClient,
+  type CacheUsage,
+} from './claude-client.js';
