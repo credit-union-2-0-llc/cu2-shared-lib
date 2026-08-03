@@ -95,7 +95,7 @@ export function createTeamsClient(opts: TeamsOptions = {}): TeamsClient {
       return true;
     } catch (err) {
       log.error('Failed to send Teams message', { error: String(err) });
-      return false;
+      return false;  // theater-ok: documented at the top of this file — "Never throws — Teams failure must not crash the pipeline"; the boolean return is the checkable handling decision
     }
   }
 

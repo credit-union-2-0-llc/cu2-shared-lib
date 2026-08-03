@@ -184,17 +184,17 @@ export function createServiceBusClient(opts: ServiceBusOptions): ServiceBusClien
     for (const receiver of receivers) {
       try {
         await (receiver as { close: () => Promise<void> }).close();
-      } catch { /* ignore */ }
+      } catch { /* ignore */ }  // theater-ok: best-effort shutdown — one resource's close() failure must not stop the rest from being released during process shutdown
     }
     for (const sender of senders.values()) {
       try {
         await (sender as { close: () => Promise<void> }).close();
-      } catch { /* ignore */ }
+      } catch { /* ignore */ }  // theater-ok: best-effort shutdown, same reasoning as the receiver loop above
     }
     if (sbClient) {
       try {
         await (sbClient as { close: () => Promise<void> }).close();
-      } catch { /* ignore */ }
+      } catch { /* ignore */ }  // theater-ok: best-effort shutdown, same reasoning as the receiver loop above
     }
     log.info('Service Bus client closed');
   }

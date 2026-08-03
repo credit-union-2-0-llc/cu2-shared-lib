@@ -57,7 +57,7 @@ export function createTwilioClient(opts: TwilioOptions): TwilioClient {
       return { sid: result.sid };
     } catch (err) {
       log.error('Failed to send SMS', { to: msg.to, error: String(err) });
-      return null;
+      return null;  // theater-ok: documented `{ sid } | null` return contract — the caller can and must check for null; changing this to throw would be a breaking change for every consumer of this shared client
     }
   }
 

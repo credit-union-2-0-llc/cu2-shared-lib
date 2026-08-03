@@ -91,7 +91,7 @@ export function createScheduler(options: SchedulerOptions = {}): Scheduler {
       log.error(`Job failed: ${job.name}`, {
         error: (err as Error).message,
         duration_ms: Date.now() - start,
-      });
+      });  // theater-ok: by design (see file header) — one job's failure must never crash the process or block other scheduled jobs; the failure is surfaced via the logger, not silently discarded
     }
   }
 

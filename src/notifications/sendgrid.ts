@@ -82,7 +82,7 @@ export function createSendGridClient(opts: SendGridOptions): SendGridClient {
       return true;
     } catch (err) {
       log.error('Failed to send email', { to: msg.to, error: String(err) });
-      return false;
+      return false;  // theater-ok: documented `boolean` return contract — the caller can and must check the result; changing this to throw would be a breaking change for every consumer of this shared client
     }
   }
 

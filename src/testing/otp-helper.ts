@@ -51,8 +51,8 @@ export interface FetchOtpOptions {
 }
 
 export class OtpNotFoundError extends Error {
-  constructor(email: string, timeoutMs: number) {
-    super(`OTP for ${email} not found within ${timeoutMs}ms`);
+  constructor(email: string, timeoutMs: number, options?: { cause?: unknown }) {
+    super(`OTP for ${email} not found within ${timeoutMs}ms`, options);
     this.name = 'OtpNotFoundError';
   }
 }
@@ -89,8 +89,11 @@ export async function fetchLatestOtp(opts: FetchOtpOptions): Promise<string> {
     await new Promise((r) => setTimeout(r, pollIntervalMs));
   }
 
-  if (lastError) {
-    throw new OtpNotFoundError(email, timeoutMs);
-  }
-  throw new OtpNotFoundError(email, timeoutMs);
+  // lastError (a fetch/network exception from the polling loop) used to be
+  // captured and then discarded — both branches threw an identical generic
+  // OtpNotFoundError, so a real connectivity/5xx failure was indistinguishable
+  // from "the code simply never appeared in time." Surfacing it as `cause`
+  // keeps the same thrown type (no behavior change for `instanceof` checks)
+  // while making the underlying failure diagnosable.
+  throw new OtpNotFoundError(email, timeoutMs, { cause: lastError });
 }
