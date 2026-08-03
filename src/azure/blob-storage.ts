@@ -120,7 +120,16 @@ export function createBlobClient(opts: BlobClientOptions = {}): BlobClient {
   async function download(blobPath: string): Promise<Buffer | null> {
     if (!useAzure) {
       const localPath = join(localDir, blobPath);
-      try { return readFileSync(localPath); } catch { return null; }
+      try {
+        return readFileSync(localPath);
+      } catch (err) {
+        // Only a missing file matches the documented "returns null if not
+        // found" contract. Anything else (EACCES, EISDIR, EMFILE, ...) is a
+        // real problem that was previously indistinguishable from "not
+        // found" — that masked permission/IO errors as empty results.
+        if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') return null;
+        throw err;
+      }
     }
 
     try {
@@ -131,8 +140,23 @@ export function createBlobClient(opts: BlobClientOptions = {}): BlobClient {
       };
       return await container.getBlockBlobClient(blobPath).downloadToBuffer();
     } catch (err) {
+      // downloadToBuffer() has no not-found-safe variant (unlike exists()/
+      // deleteIfExists() below, which the SDK guarantees never throw for a
+      // missing blob) — it throws a RestError for a genuine 404 too. This
+      // used to catch-all and return null, which silently turned auth
+      // failures, network errors, and throttling into a false "not found."
+      // @azure/storage-blob's RestError stably exposes statusCode (and
+      // code, e.g. 'BlobNotFound'/'ContainerNotFound') for this exact
+      // purpose — only that case matches the documented "returns null if
+      // not found" contract; everything else is a real failure the caller
+      // must see.
+      const azErr = err as { statusCode?: number; code?: string };
+      const isNotFound = azErr?.statusCode === 404
+        || azErr?.code === 'BlobNotFound'
+        || azErr?.code === 'ContainerNotFound';
+      if (isNotFound) return null;
       log.warn('Blob download failed', { blobPath, error: String(err) });
-      return null;
+      throw err;
     }
   }
 
@@ -141,21 +165,38 @@ export function createBlobClient(opts: BlobClientOptions = {}): BlobClient {
   async function deleteFn(blobPath: string): Promise<boolean> {
     if (!useAzure) {
       const localPath = join(localDir, blobPath);
-      try { unlinkSync(localPath); return true; } catch { return false; }
+      try {
+        unlinkSync(localPath);
+        return true;
+      } catch (err) {
+        // Same ENOENT-only carve-out as download(): a missing file is a
+        // legitimate "nothing to delete" (false). EACCES/EPERM/EBUSY etc.
+        // are real failures that were previously reported identically to
+        // "wasn't there."
+        if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') return false;
+        throw err;
+      }
     }
 
     try {
       const container = await getContainerClient() as {
         getBlockBlobClient: (name: string) => {
-          deleteIfExists: () => Promise<unknown>;
+          deleteIfExists: () => Promise<{ succeeded: boolean }>;
         };
       };
-      await container.getBlockBlobClient(blobPath).deleteIfExists();
-      log.info('Blob deleted', { blobPath });
-      return true;
+      // deleteIfExists() is the SDK's own not-found-safe variant: it never
+      // throws for a missing blob, it returns { succeeded: false }. This
+      // used to be discarded and unconditionally reported as `true` — so
+      // deleting an already-gone blob silently claimed success. Any
+      // exception reaching this catch is therefore a genuine failure
+      // (auth/network/etc.), never a legitimate "not found," and must
+      // propagate rather than collapse to `false`.
+      const result = await container.getBlockBlobClient(blobPath).deleteIfExists();
+      log.info('Blob deleted', { blobPath, succeeded: result.succeeded });
+      return result.succeeded;
     } catch (err) {
       log.warn('Blob delete failed', { blobPath, error: String(err) });
-      return false;
+      throw err;
     }
   }
 
@@ -166,16 +207,16 @@ export function createBlobClient(opts: BlobClientOptions = {}): BlobClient {
       return existsSync(join(localDir, blobPath));
     }
 
-    try {
-      const container = await getContainerClient() as {
-        getBlockBlobClient: (name: string) => {
-          exists: () => Promise<boolean>;
-        };
+    // exists() is also a not-found-safe SDK method (internally does a HEAD
+    // and swallows only the 404 case) — like deleteIfExists() above, any
+    // exception that reaches us here is a genuine failure, not "doesn't
+    // exist," and used to be silently collapsed to `false`.
+    const container = await getContainerClient() as {
+      getBlockBlobClient: (name: string) => {
+        exists: () => Promise<boolean>;
       };
-      return await container.getBlockBlobClient(blobPath).exists();
-    } catch {
-      return false;
-    }
+    };
+    return container.getBlockBlobClient(blobPath).exists();
   }
 
   // ─── SAS URL ───────────────────────────────────────────────────────

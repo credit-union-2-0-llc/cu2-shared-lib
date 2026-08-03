@@ -102,4 +102,47 @@ describe('fetchLatestOtp', () => {
       }),
     ).rejects.toBeInstanceOf(OtpNotFoundError);
   });
+
+  it('preserves the underlying fetch/network error as `cause` instead of discarding it', async () => {
+    // Regression test: fetchLatestOtp used to catch the polling loop's fetch
+    // error into `lastError` and then never use it — both the "always
+    // errored" and "just never appeared" paths threw an identical generic
+    // OtpNotFoundError, so a real connectivity failure was indistinguishable
+    // from a benign timeout. The underlying error must now be reachable via
+    // `.cause` so a failing E2E run can be diagnosed.
+    const fetchImpl = makeFetch([{ ok: false, throws: true }]);
+    let caught: unknown;
+    try {
+      await fetchLatestOtp({
+        apiUrl: 'http://api.test',
+        email: 'a@b.com',
+        pollIntervalMs: 5,
+        timeoutMs: 30,
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+      });
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(OtpNotFoundError);
+    expect((caught as Error).cause).toBeInstanceOf(Error);
+    expect(((caught as Error).cause as Error).message).toBe('network');
+  });
+
+  it('leaves `cause` undefined on a genuine timeout with no fetch error', async () => {
+    const fetchImpl = makeFetch([{ ok: true, body: {} }]);
+    let caught: unknown;
+    try {
+      await fetchLatestOtp({
+        apiUrl: 'http://api.test',
+        email: 'a@b.com',
+        pollIntervalMs: 5,
+        timeoutMs: 30,
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+      });
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(OtpNotFoundError);
+    expect((caught as Error).cause).toBeUndefined();
+  });
 });
