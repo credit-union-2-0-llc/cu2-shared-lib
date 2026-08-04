@@ -1,0 +1,40 @@
+# .cu2-sanitize-allow — narrow, documented exceptions for cu2_sanitize_scan.py
+# See tools/sanitize/README.md in credit-union-2-0-llc/cu-agent-standards for
+# the tier model, the two profiles, and the rules of the road for this file.
+
+# ---------------------------------------------------------------------------
+# Public GitHub repo self-references. credit-union-2-0-llc/cu2-shared-lib is
+# THIS repo (already public); credit-union-2-0-llc/cu-agent-standards is also
+# public and is the documented reusable-workflow consumption pattern.
+# ---------------------------------------------------------------------------
+line:github\.com/credit-union-2-0-llc/cu-agent-standards
+line:uses: credit-union-2-0-llc/cu-agent-standards/\.github/workflows/reusable-theater\.yml@main
+line:uses: credit-union-2-0-llc/cu-agent-standards/\.github/workflows/reusable-sanitize\.yml@main
+
+# ---------------------------------------------------------------------------
+# This package's own published npm scope. @cu2/shared-lib (and its subpath
+# exports like @cu2/shared-lib/auth) is this repo's actual public package
+# name -- self-documenting it in README/CODEBASE/CHANGELOG discloses nothing
+# beyond what anyone installing the package already sees.
+# ---------------------------------------------------------------------------
+line:@credit-union-2-0-llc/shared-lib
+line:git\+https://github\.com/credit-union-2-0-llc/cu2-shared-lib
+line:git\+https://github\.com/CU2CU2/cu2-shared-lib
+line:# CODEBASE\.md — credit-union-2-0-llc/cu2-shared-lib
+
+# ---------------------------------------------------------------------------
+# Universally-known documentation placeholders, not real values.
+# ---------------------------------------------------------------------------
+# The canonical example SSN used throughout US tech docs/tutorials.
+line:123-45-6789
+# The North American reserved fake-number convention (555 prefix).
+line:5551234567
+line:15551234567
+line:15551110000
+line:15552220000
+# The all-zeros nil-GUID dev/test default (not a real Azure subscription ID).
+line:00000000-0000-0000-0000-000000000001
+# A literal placeholder app name, not a real deployed Key Vault.
+line:kv-myapp\.vault\.azure\.net
+# Fake test-fixture emails.
+line:email: 'a(?:\+chromium)?@b\.com'
